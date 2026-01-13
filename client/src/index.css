@@ -87,7 +87,7 @@ body {
 
 .app-subtitle {
   margin: 10px auto 0;
-  max-width: 700px;
+  max-width: 650px;
   font-size: 0.98rem;
   color: var(--muted);
 }
