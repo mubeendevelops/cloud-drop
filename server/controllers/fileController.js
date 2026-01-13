@@ -40,6 +40,7 @@ export const uploadFile = async (req, res, next) => {
     );
 
     const fileDoc = await File.create({
+      user: req.user.userId,
       originalName: originalname,
       fileName: uploadResult.original_filename || originalname,
       mimeType: mimetype,
@@ -54,9 +55,11 @@ export const uploadFile = async (req, res, next) => {
   }
 };
 
-export const getFiles = async (_req, res, next) => {
+export const getFiles = async (req, res, next) => {
   try {
-    const files = await File.find().sort({ createdAt: -1 }).lean();
+    const files = await File.find({ user: req.user.userId })
+      .sort({ createdAt: -1 })
+      .lean();
     res.json(files);
   } catch (error) {
     next(error);
@@ -66,7 +69,10 @@ export const getFiles = async (_req, res, next) => {
 export const getFileById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const file = await File.findById(id).lean();
+    const file = await File.findOne({
+      _id: id,
+      user: req.user.userId,
+    }).lean();
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
@@ -82,7 +88,10 @@ export const deleteFileById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const file = await File.findById(id);
+    const file = await File.findOne({
+      _id: id,
+      user: req.user.userId,
+    });
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
@@ -102,7 +111,10 @@ export const deleteFileById = async (req, res, next) => {
       (error?.message && error.message.includes("Resource not found"))
     ) {
       try {
-        const file = await File.findById(req.params.id);
+        const file = await File.findOne({
+          _id: req.params.id,
+          user: req.user.userId,
+        });
         if (file) {
           await cloudinary.uploader.destroy(file.publicId, {
             resource_type: "auto",

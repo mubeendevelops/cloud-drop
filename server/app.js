@@ -3,6 +3,7 @@ import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
 import fileRoutes from "./routes/fileRoutes.js";
 
 dotenv.config();
@@ -39,10 +40,17 @@ app.get("/", (_req, res) => {
   res.json({
     name: "Cloud Drop API",
     status: "OK",
-    endpoints: ["/api/upload", "/api/files"],
+    endpoints: [
+      "/api/auth/register",
+      "/api/auth/login",
+      "/api/auth/me",
+      "/api/upload",
+      "/api/files",
+    ],
   });
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api", fileRoutes);
 
 // eslint-disable-next-line no-unused-vars

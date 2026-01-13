@@ -1,5 +1,6 @@
 import express from "express";
 import { uploadSingle } from "../middleware/uploadMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   uploadFile,
   getFiles,
@@ -8,6 +9,9 @@ import {
 } from "../controllers/fileController.js";
 
 const router = express.Router();
+
+// All file routes require authentication
+router.use(protect);
 
 router.post("/upload", uploadSingle, uploadFile);
 router.get("/files", getFiles);
