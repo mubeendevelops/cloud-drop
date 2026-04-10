@@ -1,31 +1,29 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { useToast } from "../hooks/useToast.js";
 
-const SignUp = ({ onSwitchToSignIn }) => {
+const SignUp = ({ onSwitchToSignIn, onError, onSuccess }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
-  const { error, success } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!name || !email || !password || !confirmPassword) {
-      error("Please fill in all fields");
+      onError("Please fill in all fields");
       return;
     }
 
     if (password.length < 6) {
-      error("Password must be at least 6 characters");
+      onError("Password must be at least 6 characters");
       return;
     }
 
     if (password !== confirmPassword) {
-      error("Passwords do not match");
+      onError("Passwords do not match");
       return;
     }
 
@@ -34,9 +32,9 @@ const SignUp = ({ onSwitchToSignIn }) => {
     setLoading(false);
 
     if (result.success) {
-      success("Account created successfully!");
+      onSuccess("Account created successfully!");
     } else {
-      error(result.message);
+      onError(result.message);
     }
   };
 

@@ -3,6 +3,18 @@ import { register, login, getMe } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
+const getAuthErrorMessage = (error, fallbackMessage) => {
+  const status = error?.response?.status;
+  const serverMessage = error?.response?.data?.message;
+  if (serverMessage) return serverMessage;
+
+  if (status === 409) return "An account with this email already exists";
+  if (status === 404) return "No account found with this email";
+  if (status === 401) return "Incorrect password";
+
+  return error.message || fallbackMessage;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error?.response?.data?.message || error.message || "Registration failed",
+        message: getAuthErrorMessage(error, "Registration failed"),
       };
     }
   };
@@ -57,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error?.response?.data?.message || error.message || "Login failed",
+        message: getAuthErrorMessage(error, "Login failed"),
       };
     }
   };

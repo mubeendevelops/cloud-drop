@@ -1,19 +1,17 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { useToast } from "../hooks/useToast.js";
 
-const SignIn = ({ onSwitchToSignUp }) => {
+const SignIn = ({ onSwitchToSignUp, onError, onSuccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
-  const { error, success } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!email || !password) {
-      error("Please fill in all fields");
+      onError("Please fill in all fields");
       return;
     }
 
@@ -22,9 +20,9 @@ const SignIn = ({ onSwitchToSignUp }) => {
     setLoading(false);
 
     if (result.success) {
-      success("Welcome back!");
+      onSuccess("Welcome back!");
     } else {
-      error(result.message);
+      onError(result.message);
     }
   };
 

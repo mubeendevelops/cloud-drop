@@ -22,10 +22,15 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    const requestUrl = error?.config?.url || "";
+    const isAuthRoute =
+      requestUrl.includes("/api/auth/login") ||
+      requestUrl.includes("/api/auth/register");
+    const hasActiveSession = !!localStorage.getItem("token");
+
+    if (error.response?.status === 401 && hasActiveSession && !isAuthRoute) {
+      // Token expired or invalid for an authenticated request
       localStorage.removeItem("token");
-      // Optionally redirect to login
       if (window.location.pathname !== "/") {
         window.location.reload();
       }

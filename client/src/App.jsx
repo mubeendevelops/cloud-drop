@@ -120,9 +120,17 @@ const App = () => {
         <main className="app-main auth-main">
           <section className="card auth-card">
             {authMode === "signin" ? (
-              <SignIn onSwitchToSignUp={() => setAuthMode("signup")} />
+              <SignIn
+                onSwitchToSignUp={() => setAuthMode("signup")}
+                onError={error}
+                onSuccess={success}
+              />
             ) : (
-              <SignUp onSwitchToSignIn={() => setAuthMode("signin")} />
+              <SignUp
+                onSwitchToSignIn={() => setAuthMode("signin")}
+                onError={error}
+                onSuccess={success}
+              />
             )}
           </section>
         </main>
