@@ -14,7 +14,14 @@ export const formatDate = (dateString) => {
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+
+  // Compare calendar days (local midnight) rather than dividing raw milliseconds.
+  // The ms-division approach floors 47 elapsed hours to 1 "day", showing "1 day ago"
+  // for a file uploaded 2 calendar days ago — mismatching the stored createdAt date.
+  // Math.round absorbs DST days that are 23 or 25 hours long.
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfFileDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((startOfToday - startOfFileDay) / 86400000);
 
   if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;

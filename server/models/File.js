@@ -33,6 +33,11 @@ const fileSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    resourceType: {
+      type: String,
+      enum: ["image", "video", "raw"],
+      default: "image",
+    },
     createdAt: {
       type: Date,
       default: Date.now,

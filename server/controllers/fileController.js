@@ -47,6 +47,7 @@ export const uploadFile = async (req, res, next) => {
       size,
       cloudinaryUrl: uploadResult.secure_url,
       publicId: uploadResult.public_id,
+      resourceType: uploadResult.resource_type,
     });
 
     res.status(201).json(fileDoc);
@@ -98,34 +99,31 @@ export const deleteFileById = async (req, res, next) => {
       throw error;
     }
 
-    await cloudinary.uploader.destroy(file.publicId, {
-      resource_type: "raw",
+    // resource_type must match what was used at upload time; destroy() silently
+    // returns {result:'not found'} rather than throwing when the type is wrong.
+    const resourceType = file.resourceType || "image";
+    const destroyResult = await cloudinary.uploader.destroy(file.publicId, {
+      resource_type: resourceType,
     });
+
+    // For legacy records that predate resourceType storage, fall back through
+    // the remaining valid types so the asset is actually removed.
+    if (destroyResult.result !== "ok") {
+      const fallbackTypes = ["image", "video", "raw"].filter(
+        (t) => t !== resourceType
+      );
+      for (const rt of fallbackTypes) {
+        const fallback = await cloudinary.uploader.destroy(file.publicId, {
+          resource_type: rt,
+        });
+        if (fallback.result === "ok") break;
+      }
+    }
 
     await file.deleteOne();
 
     res.json({ message: "File deleted successfully" });
   } catch (error) {
-    if (
-      error?.http_code === 400 ||
-      (error?.message && error.message.includes("Resource not found"))
-    ) {
-      try {
-        const file = await File.findOne({
-          _id: req.params.id,
-          user: req.user.userId,
-        });
-        if (file) {
-          await cloudinary.uploader.destroy(file.publicId, {
-            resource_type: "auto",
-          });
-          await file.deleteOne();
-          return res.json({ message: "File deleted successfully" });
-        }
-      } catch (innerError) {
-        return next(innerError);
-      }
-    }
     next(error);
   }
 };
