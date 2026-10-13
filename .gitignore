@@ -63,3 +63,4 @@ data/
 .claude.json
 .claude.jsonl
 CLAUDE.md
+prompt_plan.md
