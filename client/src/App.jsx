@@ -5,13 +5,27 @@ import ToastContainer from "./components/ToastContainer.jsx";
 import Modal from "./components/Modal.jsx";
 import SignIn from "./components/SignIn.jsx";
 import SignUp from "./components/SignUp.jsx";
-import { getFiles, deleteFile } from "./services/api.js";
+import {
+  getFiles,
+  deleteFile,
+  getErrorMessage,
+  isUnauthorized,
+} from "./services/api.js";
 import { useToast } from "./hooks/useToast.js";
 import { useAuth } from "./contexts/AuthContext.jsx";
 
 const App = () => {
   const [authMode, setAuthMode] = useState("signin"); // "signin" or "signup"
-  const { user, loading, signOut, isAuthenticated } = useAuth();
+  const {
+    user,
+    loading,
+    signOut,
+    isAuthenticated,
+    connectionError,
+    retryConnection,
+    sessionExpired,
+    acknowledgeSessionExpired,
+  } = useAuth();
   const [files, setFiles] = useState([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState("");
@@ -29,8 +43,9 @@ const App = () => {
       const data = await getFiles();
       setFiles(data);
     } catch (err) {
-      const errorMsg =
-        err?.response?.data?.message || err.message || "Failed to fetch files";
+      // A 401 ends the session; AuthContext shows the sign-in form instead
+      if (isUnauthorized(err)) return;
+      const errorMsg = getErrorMessage(err, "Failed to fetch files");
       setListError(errorMsg);
       error(errorMsg);
     } finally {
@@ -50,9 +65,8 @@ const App = () => {
       success("File deleted successfully");
       setDeleteModal({ isOpen: false, fileId: null, fileName: "" });
     } catch (err) {
-      const errorMsg =
-        err?.response?.data?.message || err.message || "Failed to delete file";
-      error(errorMsg);
+      if (isUnauthorized(err)) return;
+      error(getErrorMessage(err, "Failed to delete file"));
     }
   };
 
@@ -71,8 +85,20 @@ const App = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchFiles();
+    } else {
+      // Do not carry one session's files or dialogs into the next
+      setFiles([]);
+      setListError("");
+      setDeleteModal({ isOpen: false, fileId: null, fileName: "" });
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (sessionExpired) {
+      error("Your session has expired. Please sign in again.");
+      acknowledgeSessionExpired();
+    }
+  }, [sessionExpired, error, acknowledgeSessionExpired]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -100,6 +126,36 @@ const App = () => {
             </svg>
           </div>
         </div>
+        <ToastContainer toasts={toasts} removeToast={removeToast} />
+      </div>
+    );
+  }
+
+  // A stored session could not be checked because the server did not answer
+  if (connectionError) {
+    return (
+      <div className="app-root">
+        <header className="app-header">
+          <h1 className="app-title">Cloud Drop</h1>
+        </header>
+
+        <main className="app-main auth-main">
+          <section className="card auth-card connection-error">
+            <h2 className="auth-title">Can't reach the server</h2>
+            <div className="alert alert-error" role="alert">
+              {connectionError}
+            </div>
+            <div className="connection-error-actions">
+              <button className="btn btn-primary" onClick={retryConnection}>
+                Try again
+              </button>
+              <button className="btn btn-outline" onClick={signOut}>
+                Sign out
+              </button>
+            </div>
+          </section>
+        </main>
+
         <ToastContainer toasts={toasts} removeToast={removeToast} />
       </div>
     );
@@ -188,6 +244,7 @@ const App = () => {
             files={files}
             loading={listLoading}
             error={listError}
+            onRetry={fetchFiles}
             onDelete={handleDeleteClick}
             onCopyUrl={handleCopyUrl}
           />

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { uploadFile } from "../services/api.js";
+import { uploadFile, getErrorMessage, isUnauthorized } from "../services/api.js";
 import { formatBytes } from "../utils/fileUtils";
 
 const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
@@ -103,12 +103,11 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
         }
       }, 500);
     } catch (error) {
-      const msg =
-        error?.response?.data?.message ||
-        error.message ||
-        "Upload failed. Please try again.";
       setUploadProgress(0);
-      if (onError) onError(msg);
+      // A 401 ends the session; AuthContext reports it
+      if (onError && !isUnauthorized(error)) {
+        onError(getErrorMessage(error, "Upload failed. Please try again."));
+      }
     } finally {
       setUploading(false);
     }

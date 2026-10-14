@@ -1668,3 +1668,35 @@ body {
     gap: 12px;
   }
 }
+
+/* Server not responding state */
+.connection-error {
+  text-align: center;
+}
+
+.connection-error .alert {
+  margin: 16px 0;
+  text-align: left;
+}
+
+.connection-error-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.alert-action {
+  margin-left: auto;
+  padding: 4px 10px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.alert-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}

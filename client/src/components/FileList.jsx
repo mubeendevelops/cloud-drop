@@ -163,7 +163,7 @@ const FileIcon = ({ mimeType }) => {
   return <span className="file-icon">{icons[iconType] || icons.file}</span>;
 };
 
-const FileList = ({ files, loading, error, onDelete, onCopyUrl }) => {
+const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
   const [copiedId, setCopiedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const hasFiles = files && files.length > 0;
@@ -259,7 +259,12 @@ const FileList = ({ files, loading, error, onDelete, onCopyUrl }) => {
               strokeLinecap="round"
             />
           </svg>
-          {error}
+          <span>{error}</span>
+          {onRetry && !loading && (
+            <button type="button" className="alert-action" onClick={onRetry}>
+              Retry
+            </button>
+          )}
         </div>
       )}
 

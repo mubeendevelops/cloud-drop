@@ -1,8 +1,35 @@
 import axios from "axios";
 
+const REQUEST_TIMEOUT_MS = 20000;
+// Uploads go through the API to Cloudinary, so they need far longer
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
+export const SERVER_UNREACHABLE_MESSAGE =
+  "The server is not responding. It may be waking up; try again in a minute.";
+
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+  timeout: REQUEST_TIMEOUT_MS,
 });
+
+// True when the request never got an answer (timeout, offline, server down)
+export const isNetworkError = (error) =>
+  axios.isAxiosError(error) && !error.response;
+
+export const isUnauthorized = (error) => error?.response?.status === 401;
+
+export const getErrorMessage = (error, fallbackMessage) => {
+  if (isNetworkError(error)) return SERVER_UNREACHABLE_MESSAGE;
+  return error?.response?.data?.message || error?.message || fallbackMessage;
+};
+
+// AuthContext registers a callback here so an expired session can reset auth
+// state without a second Axios instance or a page reload.
+let unauthorizedHandler = null;
+
+export const setUnauthorizedHandler = (handler) => {
+  unauthorizedHandler = handler;
+};
 
 // Request interceptor to add token to all requests
 apiClient.interceptors.request.use(
@@ -26,14 +53,16 @@ apiClient.interceptors.response.use(
     const isAuthRoute =
       requestUrl.includes("/api/auth/login") ||
       requestUrl.includes("/api/auth/register");
-    const hasActiveSession = !!localStorage.getItem("token");
+    const sentToken = error?.config?.headers?.Authorization;
+    const currentToken = localStorage.getItem("token");
+    // Ignore answers to requests sent with a token that has since been replaced
+    const isCurrentSession =
+      !!currentToken && sentToken === `Bearer ${currentToken}`;
 
-    if (error.response?.status === 401 && hasActiveSession && !isAuthRoute) {
+    if (isUnauthorized(error) && isCurrentSession && !isAuthRoute) {
       // Token expired or invalid for an authenticated request
       localStorage.removeItem("token");
-      if (window.location.pathname !== "/") {
-        window.location.reload();
-      }
+      if (unauthorizedHandler) unauthorizedHandler();
     }
     return Promise.reject(error);
   }
@@ -71,6 +100,7 @@ export const uploadFile = async (file) => {
     headers: {
       "Content-Type": "multipart/form-data",
     },
+    timeout: UPLOAD_TIMEOUT_MS,
   });
 
   return response.data;

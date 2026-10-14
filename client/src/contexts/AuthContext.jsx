@@ -1,9 +1,26 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { register, login, getMe } from "../services/api.js";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  register,
+  login,
+  getMe,
+  getErrorMessage,
+  isNetworkError,
+  isUnauthorized,
+  setUnauthorizedHandler,
+} from "../services/api.js";
 
 const AuthContext = createContext(null);
 
 const getAuthErrorMessage = (error, fallbackMessage) => {
+  if (isNetworkError(error)) return getErrorMessage(error, fallbackMessage);
+
   const status = error?.response?.status;
   const serverMessage = error?.response?.data?.message;
   if (serverMessage) return serverMessage;
@@ -19,38 +36,85 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(() => localStorage.getItem("token"));
+  // Set when the stored token could not be checked because the server did not
+  // answer; the token is kept so a retry can restore the session.
+  const [connectionError, setConnectionError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [verifyAttempt, setVerifyAttempt] = useState(0);
+  // The token already known to be valid (just issued, or confirmed by getMe)
+  const verifiedTokenRef = useRef(null);
 
-  // Verify token when token changes or on mount
+  const clearSession = useCallback(() => {
+    verifiedTokenRef.current = null;
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+    setConnectionError("");
+  }, []);
+
+  // Any authenticated request answered with 401 ends the session
   useEffect(() => {
-    const verifyToken = async () => {
-      if (token) {
-        localStorage.setItem("token", token);
-        try {
-          const userData = await getMe();
-          setUser(userData);
-        } catch (error) {
-          // Token invalid or expired
-          setToken(null);
-          setUser(null);
-          localStorage.removeItem("token");
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        localStorage.removeItem("token");
-        setUser(null);
-        setLoading(false);
-      }
-    };
+    setUnauthorizedHandler(() => {
+      clearSession();
+      setSessionExpired(true);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
 
-    verifyToken();
-  }, [token]);
+  // Verify a stored token on mount, and again when the user retries
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    if (verifiedTokenRef.current === token) {
+      // Issued by signIn/signUp a moment ago; no need to ask the server again
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setConnectionError("");
+
+    getMe()
+      .then((userData) => {
+        if (cancelled) return;
+        verifiedTokenRef.current = token;
+        setUser(userData);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        // A 401 has already cleared the session through the interceptor.
+        // Anything else (timeout, network error, 5xx) keeps the token.
+        if (!isUnauthorized(error)) {
+          setConnectionError(
+            getErrorMessage(error, "Could not reach the server.")
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, verifyAttempt]);
+
+  const startSession = (response) => {
+    verifiedTokenRef.current = response.token;
+    localStorage.setItem("token", response.token);
+    setSessionExpired(false);
+    setConnectionError("");
+    setToken(response.token);
+    setUser(response.user);
+  };
 
   const signUp = async (email, password, name) => {
     try {
       const response = await register(email, password, name);
-      setToken(response.token);
-      setUser(response.user);
+      startSession(response);
       return { success: true };
     } catch (error) {
       return {
@@ -63,8 +127,7 @@ export const AuthProvider = ({ children }) => {
   const signIn = async (email, password) => {
     try {
       const response = await login(email, password);
-      setToken(response.token);
-      setUser(response.user);
+      startSession(response);
       return { success: true };
     } catch (error) {
       return {
@@ -74,19 +137,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signOut = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("token");
-  };
+  const signOut = clearSession;
+
+  const retryConnection = useCallback(() => {
+    setVerifyAttempt((attempt) => attempt + 1);
+  }, []);
+
+  const acknowledgeSessionExpired = useCallback(() => {
+    setSessionExpired(false);
+  }, []);
 
   const value = {
     user,
     token,
     loading,
+    connectionError,
+    sessionExpired,
     signUp,
     signIn,
     signOut,
+    retryConnection,
+    acknowledgeSessionExpired,
     isAuthenticated: !!user && !!token,
   };
 
@@ -100,4 +171,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
