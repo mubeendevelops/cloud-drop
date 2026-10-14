@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 
 const FOCUSABLE = "button:not([disabled]), [href], input, select, textarea";
 

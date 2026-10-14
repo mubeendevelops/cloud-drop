@@ -109,7 +109,7 @@ export const saveFileAs = async (url, fileName) => {
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 };
@@ -118,7 +118,7 @@ export const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
     return true;
-  } catch (err) {
+  } catch {
     // Fallback for older browsers
     const textArea = document.createElement("textarea");
     textArea.value = text;
@@ -130,7 +130,7 @@ export const copyToClipboard = async (text) => {
       document.execCommand("copy");
       document.body.removeChild(textArea);
       return true;
-    } catch (e) {
+    } catch {
       document.body.removeChild(textArea);
       return false;
     }

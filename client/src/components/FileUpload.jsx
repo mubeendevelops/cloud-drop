@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { uploadFile, getErrorMessage, isUnauthorized } from "../services/api.js";
 import {
   formatBytes,
@@ -15,7 +15,7 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragCounter, setDragCounter] = useState(0);
+  const [, setDragCounter] = useState(0);
   const fileInputRef = useRef(null);
   // Guards against a second click before the "uploading" render has happened
   const uploadingRef = useRef(false);

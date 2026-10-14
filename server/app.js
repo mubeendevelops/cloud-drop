@@ -50,7 +50,7 @@ app.use(
   })
 );
 
-if (!isProduction) {
+if (!isProduction && process.env.NODE_ENV !== "test") {
   app.use(morgan("dev"));
 }
 
@@ -107,7 +107,6 @@ const getClientMessage = (err, status) => {
   return err.message || "Request failed";
 };
 
-// eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   const status = getStatusCode(err);
   if (status >= 500) {

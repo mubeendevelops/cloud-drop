@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
@@ -61,7 +61,9 @@ export const AuthProvider = ({ children }) => {
     return () => setUnauthorizedHandler(null);
   }, [clearSession]);
 
-  // Verify a stored token on mount, and again when the user retries
+  // Verify a stored token on mount, and again when the user retries. The
+  // loading flag tracks this check, so setting it here is intended.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!token) {
       setLoading(false);
@@ -101,6 +103,7 @@ export const AuthProvider = ({ children }) => {
       cancelled = true;
     };
   }, [token, verifyAttempt]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const startSession = (response) => {
     verifiedTokenRef.current = response.token;

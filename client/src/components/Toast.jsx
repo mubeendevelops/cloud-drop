@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 const Toast = ({ message, type = "info", onClose, duration = 4000 }) => {
   // Keep the latest onClose without making it a dependency of the timer, so

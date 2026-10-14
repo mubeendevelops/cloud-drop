@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import FileList from "./components/FileList.jsx";
 import ToastContainer from "./components/ToastContainer.jsx";
@@ -39,7 +39,7 @@ const App = () => {
   const deletingRef = useRef(false);
   const { toasts, removeToast, success, error } = useToast();
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       setListError("");
       setListLoading(true);
@@ -54,7 +54,7 @@ const App = () => {
     } finally {
       setListLoading(false);
     }
-  };
+  }, [error]);
 
   const handleDeleteClick = (id, fileName) => {
     setDeleteModal({ isOpen: true, fileId: id, fileName });
@@ -91,6 +91,9 @@ const App = () => {
     success(msg);
   };
 
+  // Loading and clearing the list is what this effect is for, so the
+  // synchronous setState calls are intended
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isAuthenticated) {
       fetchFiles();
@@ -100,7 +103,8 @@ const App = () => {
       setListError("");
       setDeleteModal({ isOpen: false, fileId: null, fileName: "" });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchFiles]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (sessionExpired) {
