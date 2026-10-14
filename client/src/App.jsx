@@ -176,6 +176,8 @@ const App = () => {
     );
   }
 
+  const firstName = user?.name?.trim().split(/\s+/)[0];
+
   // Show main app if authenticated
   return (
     <div className="page page-app">
@@ -186,7 +188,9 @@ const App = () => {
 
       <main className="app-main" id="main" tabIndex={-1}>
         <div className="page-intro">
-          <h1 className="page-title">Files</h1>
+          <h1 className="page-title">
+            {firstName ? `Welcome back, ${firstName}` : "Your files"}
+          </h1>
           <p className="page-subtitle">
             Upload, organize, and download your files from anywhere.
           </p>
