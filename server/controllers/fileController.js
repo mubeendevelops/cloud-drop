@@ -1,9 +1,17 @@
 import crypto from "crypto";
 import path from "path";
+import mongoose from "mongoose";
 import cloudinary from "../config/cloudinary.js";
 import File from "../models/File.js";
 
 const UPLOAD_FOLDER = "cloud-drop";
+
+// Registration is open, so each account gets a fixed share of the Cloudinary
+// quota. Checked before anything is sent to Cloudinary.
+const MAX_FILES_PER_USER = 50;
+const MAX_STORAGE_BYTES_PER_USER = 100 * 1024 * 1024;
+
+const BYTES_PER_MB = 1024 * 1024;
 
 const createError = (message, statusCode) => {
   const error = new Error(message);
@@ -25,12 +33,6 @@ const toHttpError = (cloudinaryError) => {
   return createError("File storage request failed", 500);
 };
 
-// Multer 1.x decodes multipart file names as latin1, which garbles UTF-8
-const decodeOriginalName = (name) => {
-  const decoded = Buffer.from(name, "latin1").toString("utf8");
-  return decoded.includes("\uFFFD") ? name : decoded;
-};
-
 // Lower-case extension with the dot, or "" when it is missing or unusual
 const getSafeExtension = (name) => {
   const ext = path.extname(name).toLowerCase();
@@ -43,6 +45,34 @@ const isMediaType = (mimeType) =>
   /^(image|video|audio)\//.test(mimeType) || mimeType === "application/pdf";
 
 const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+
+const getUsage = async (userId) => {
+  const [usage] = await File.aggregate([
+    { $match: { user: new mongoose.Types.ObjectId(userId) } },
+    { $group: { _id: null, count: { $sum: 1 }, bytes: { $sum: "$size" } } },
+  ]);
+  return usage || { count: 0, bytes: 0 };
+};
+
+// Concurrent uploads can each pass this check, so the cap can be overshot by
+// a file or two; that is acceptable for a quota guard.
+const assertWithinQuota = async (userId, newFileSize) => {
+  const { count, bytes } = await getUsage(userId);
+  if (count >= MAX_FILES_PER_USER) {
+    throw createError(
+      `You have reached the limit of ${MAX_FILES_PER_USER} files. Delete some files to upload more.`,
+      403
+    );
+  }
+  if (bytes + newFileSize > MAX_STORAGE_BYTES_PER_USER) {
+    const usedMb = (bytes / BYTES_PER_MB).toFixed(1);
+    const limitMb = MAX_STORAGE_BYTES_PER_USER / BYTES_PER_MB;
+    throw createError(
+      `This file would exceed your ${limitMb} MB storage limit (${usedMb} MB used). Delete some files to upload more.`,
+      403
+    );
+  }
+};
 
 const uploadStream = (buffer, options) => {
   return new Promise((resolve, reject) => {
@@ -122,8 +152,9 @@ export const uploadFile = async (req, res, next) => {
       throw createError("No file uploaded", 400);
     }
 
-    const { mimetype, size, buffer } = req.file;
-    const originalName = decodeOriginalName(req.file.originalname);
+    const { mimetype, size, buffer, originalname: originalName } = req.file;
+
+    await assertWithinQuota(req.user.userId, size);
 
     const uploadResult = await uploadBufferToCloudinary(
       buffer,

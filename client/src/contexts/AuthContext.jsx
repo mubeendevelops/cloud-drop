@@ -26,8 +26,8 @@ const getAuthErrorMessage = (error, fallbackMessage) => {
   if (serverMessage) return serverMessage;
 
   if (status === 409) return "An account with this email already exists";
-  if (status === 404) return "No account found with this email";
-  if (status === 401) return "Incorrect password";
+  if (status === 401) return "Invalid email or password";
+  if (status === 429) return "Too many attempts. Please try again later.";
 
   return error.message || fallbackMessage;
 };
