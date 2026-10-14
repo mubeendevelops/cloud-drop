@@ -1,6 +1,10 @@
 import React, { useRef, useState } from "react";
 import { uploadFile, getErrorMessage, isUnauthorized } from "../services/api.js";
-import { formatBytes } from "../utils/fileUtils";
+import {
+  formatBytes,
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_LABEL,
+} from "../utils/fileUtils";
 
 const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -11,12 +15,22 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
   const fileInputRef = useRef(null);
   const dropzoneRef = useRef(null);
 
-  const handleFileChange = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadProgress(0);
+  const selectFile = (file) => {
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      if (onError) {
+        onError(
+          `"${file.name}" is ${formatBytes(file.size)}. The limit is ${MAX_FILE_SIZE_LABEL} per file.`
+        );
+      }
+      return;
     }
+    setSelectedFile(file);
+    setUploadProgress(0);
+  };
+
+  const handleFileChange = (event) => {
+    selectFile(event.target.files?.[0]);
   };
 
   const handleDrop = (event) => {
@@ -25,11 +39,7 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
     setIsDragging(false);
     setDragCounter(0);
     
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadProgress(0);
-    }
+    selectFile(event.dataTransfer.files?.[0]);
   };
 
   const handleDragOver = (event) => {
@@ -217,7 +227,7 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
               <span className="upload-browse-link">click to browse</span>
             </div>
             <div className="upload-text-sub">
-              Supports all file types · Max size depends on your Cloudinary plan
+              Supports all file types · Max {MAX_FILE_SIZE_LABEL} per file
             </div>
           </>
         )}

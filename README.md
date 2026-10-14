@@ -249,7 +249,9 @@ cd cloud-drop
    CLOUDINARY_API_SECRET=your_api_secret
    ```
 
-4. Files uploaded from the app will be stored under the `cloud-drop` folder in your Cloudinary account.
+4. Files uploaded from the app will be stored under the `cloud-drop` folder in your Cloudinary account, each under `cloud-drop/<user id>/<random id>`. The original file name is kept only in MongoDB.
+5. **Allow PDF and ZIP delivery.** New free Cloudinary accounts block delivery of PDF and ZIP files by default, so links to those files return 401 even though the upload succeeds. In the Cloudinary console open **Settings → Security** and enable **Allow delivery of PDF and ZIP files**.
+6. Uploads are limited to 10 MB per file, which is the free plan's limit for image and raw files.
 
 ---
 
@@ -272,7 +274,7 @@ cd cloud-drop
 4. Backend uses Multer to read the file into memory, then streams it to Cloudinary.
 5. Cloudinary returns metadata (secure URL, public ID), which is saved along with file details and user ID in MongoDB.
 6. The frontend retrieves user's files using `GET /api/files` (only returns files owned by the authenticated user).
-7. Clicking **Download** opens the Cloudinary URL in a new tab.
+7. Clicking **Download** saves the file under its original name.
 8. Clicking **Delete** calls `DELETE /api/files/:id`, which verifies ownership and removes the file from Cloudinary and then from MongoDB.
 
 ### Security Features

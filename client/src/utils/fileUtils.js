@@ -1,3 +1,7 @@
+// Keep in sync with MAX_FILE_SIZE_BYTES in server/middleware/uploadMiddleware.js
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILE_SIZE_LABEL = "10 MB";
+
 export const formatBytes = (bytes) => {
   if (!bytes && bytes !== 0) return "";
   if (bytes === 0) return "0 B";
@@ -47,6 +51,41 @@ export const getFileIcon = (mimeType) => {
 
 export const isImageFile = (mimeType) => {
   return mimeType && mimeType.startsWith("image/");
+};
+
+// Cloudinary URL that is served with "Content-Disposition: attachment".
+// Cloudinary only accepts a plain name in the flag (no dots, slashes, or
+// non-ASCII characters) and appends the extension itself.
+export const getDownloadUrl = (file) => {
+  const url = file?.cloudinaryUrl || "";
+  if (!url.includes("/upload/")) return url;
+  const baseName = (file.originalName || "").replace(/\.[^.]*$/, "");
+  const safeName = baseName
+    .replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const flag = safeName ? `fl_attachment:${safeName}` : "fl_attachment";
+  return url.replace("/upload/", `/upload/${flag}/`);
+};
+
+// Fetch the file and hand it to the browser under its exact original name.
+// Resolves false when that is not possible so the caller can fall back to
+// getDownloadUrl.
+export const saveFileAs = async (url, fileName) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return false;
+    const objectUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    return true;
+  } catch (err) {
+    return false;
+  }
 };
 
 export const copyToClipboard = async (text) => {

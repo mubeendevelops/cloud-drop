@@ -5,6 +5,8 @@ import {
   getFileIcon,
   isImageFile,
   copyToClipboard,
+  getDownloadUrl,
+  saveFileAs,
 } from "../utils/fileUtils";
 
 const FileIcon = ({ mimeType }) => {
@@ -166,6 +168,7 @@ const FileIcon = ({ mimeType }) => {
 const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
   const [copiedId, setCopiedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
   const hasFiles = files && files.length > 0;
 
   const filteredFiles = hasFiles
@@ -181,6 +184,16 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
       setTimeout(() => setCopiedId(null), 2000);
       if (onCopyUrl) onCopyUrl();
     }
+  };
+
+  const handleDownload = async (event, file) => {
+    event.preventDefault();
+    if (downloadingId) return;
+    setDownloadingId(file._id);
+    const saved = await saveFileAs(file.cloudinaryUrl, file.originalName);
+    setDownloadingId(null);
+    // Fall back to Cloudinary's attachment URL (simplified file name)
+    if (!saved) window.location.assign(getDownloadUrl(file));
   };
 
   return (
@@ -379,9 +392,11 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
                 </button>
                 <a
                   className="btn-icon btn-icon-primary"
-                  href={file.cloudinaryUrl}
-                  target="_blank"
+                  href={getDownloadUrl(file)}
+                  download={file.originalName}
                   rel="noopener noreferrer"
+                  onClick={(event) => handleDownload(event, file)}
+                  aria-busy={downloadingId === file._id}
                   title="Download"
                   aria-label="Download"
                 >
