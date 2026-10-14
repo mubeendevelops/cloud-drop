@@ -92,7 +92,9 @@ export const getMe = async () => {
 };
 
 // File endpoints
-export const uploadFile = async (file) => {
+// onProgress, when given, is called with the fraction (0 to 1) of the request
+// body sent so far
+export const uploadFile = async (file, onProgress) => {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -101,6 +103,11 @@ export const uploadFile = async (file) => {
       "Content-Type": "multipart/form-data",
     },
     timeout: UPLOAD_TIMEOUT_MS,
+    onUploadProgress: (event) => {
+      if (onProgress && event.total) {
+        onProgress(event.loaded / event.total);
+      }
+    },
   });
 
   return response.data;
@@ -108,11 +115,6 @@ export const uploadFile = async (file) => {
 
 export const getFiles = async () => {
   const response = await apiClient.get("/api/files");
-  return response.data;
-};
-
-export const getFileById = async (id) => {
-  const response = await apiClient.get(`/api/files/${id}`);
   return response.data;
 };
 

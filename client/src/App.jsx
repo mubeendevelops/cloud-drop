@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import FileList from "./components/FileList.jsx";
 import ToastContainer from "./components/ToastContainer.jsx";
@@ -34,7 +34,10 @@ const App = () => {
     fileId: null,
     fileName: "",
   });
-  const { toasts, removeToast, success, error, info } = useToast();
+  const [deleting, setDeleting] = useState(false);
+  // Guards against a second confirm click before the disabled render
+  const deletingRef = useRef(false);
+  const { toasts, removeToast, success, error } = useToast();
 
   const fetchFiles = async () => {
     try {
@@ -59,6 +62,9 @@ const App = () => {
 
   const handleDeleteConfirm = async () => {
     const { fileId } = deleteModal;
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setDeleting(true);
     try {
       await deleteFile(fileId);
       setFiles((prev) => prev.filter((file) => file._id !== fileId));
@@ -67,6 +73,9 @@ const App = () => {
     } catch (err) {
       if (isUnauthorized(err)) return;
       error(getErrorMessage(err, "Failed to delete file"));
+    } finally {
+      deletingRef.current = false;
+      setDeleting(false);
     }
   };
 
@@ -264,6 +273,8 @@ const App = () => {
         title="Delete File"
         message={`Are you sure you want to delete "${deleteModal.fileName}"? This action cannot be undone.`}
         confirmText="Delete"
+        loadingText="Deleting…"
+        loading={deleting}
         cancelText="Cancel"
         type="danger"
       />

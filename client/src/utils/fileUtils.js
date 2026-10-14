@@ -34,19 +34,45 @@ export const formatDate = (dateString) => {
   return date.toLocaleDateString();
 };
 
-export const getFileIcon = (mimeType) => {
-  if (!mimeType) return "file";
-  
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType.includes("pdf")) return "pdf";
-  if (mimeType.includes("word") || mimeType.includes("document")) return "document";
-  if (mimeType.includes("excel") || mimeType.includes("spreadsheet")) return "spreadsheet";
-  if (mimeType.includes("zip") || mimeType.includes("archive")) return "archive";
-  if (mimeType.includes("text") || mimeType.includes("code")) return "text";
-  
+const ARCHIVE_MIME_HINTS = ["zip", "rar", "7z", "tar", "compressed", "archive"];
+const ARCHIVE_EXTENSIONS = ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz"];
+
+// fileName is optional: browsers send no useful type for some formats (rar,
+// 7z), so the extension is used when the MIME type says nothing.
+export const getFileIcon = (mimeType, fileName = "") => {
+  const type = (mimeType || "").toLowerCase();
+  const extension = fileName.includes(".")
+    ? fileName.split(".").pop().toLowerCase()
+    : "";
+
+  if (type.startsWith("image/")) return "image";
+  if (type.startsWith("video/")) return "video";
+  if (type.startsWith("audio/")) return "audio";
+  if (type.includes("pdf")) return "pdf";
+  // Spreadsheets and presentations first: every Office and OpenDocument type
+  // also contains the word "document".
+  if (type.includes("excel") || type.includes("spreadsheet")) return "spreadsheet";
+  if (type.includes("powerpoint") || type.includes("presentation")) return "presentation";
+  if (type.includes("word") || type.includes("document")) return "document";
+  if (
+    ARCHIVE_MIME_HINTS.some((hint) => type.includes(hint)) ||
+    ARCHIVE_EXTENSIONS.includes(extension)
+  ) {
+    return "archive";
+  }
+  if (type.includes("text") || type.includes("code")) return "text";
+
   return "file";
+};
+
+// Small square Cloudinary rendition for list previews. Returns the original
+// URL when it is not a Cloudinary image URL.
+export const getThumbnailUrl = (url, size = 96) => {
+  if (!url || !url.includes("/image/upload/")) return url;
+  return url.replace(
+    "/image/upload/",
+    `/image/upload/c_fill,w_${size},h_${size},f_auto,q_auto/`
+  );
 };
 
 export const isImageFile = (mimeType) => {

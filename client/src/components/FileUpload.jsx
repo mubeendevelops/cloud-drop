@@ -1,10 +1,14 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { uploadFile, getErrorMessage, isUnauthorized } from "../services/api.js";
 import {
   formatBytes,
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_LABEL,
 } from "../utils/fileUtils";
+
+// Share of the progress bar given to sending the request body
+const UPLOAD_SENT_PERCENT = 95;
+const COMPLETED_BAR_MS = 700;
 
 const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -13,7 +17,13 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const fileInputRef = useRef(null);
-  const dropzoneRef = useRef(null);
+  // Guards against a second click before the "uploading" render has happened
+  const uploadingRef = useRef(false);
+  const resetTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => clearTimeout(resetTimerRef.current);
+  }, []);
 
   const selectFile = (file) => {
     if (!file) return;
@@ -38,14 +48,15 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
     event.stopPropagation();
     setIsDragging(false);
     setDragCounter(0);
-    
+    if (uploading) return;
+
     selectFile(event.dataTransfer.files?.[0]);
   };
 
   const handleDragOver = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!isDragging) {
+    if (!isDragging && !uploading) {
       setIsDragging(true);
     }
   };
@@ -54,7 +65,7 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
     event.preventDefault();
     event.stopPropagation();
     setDragCounter((prev) => prev + 1);
-    setIsDragging(true);
+    if (!uploading) setIsDragging(true);
   };
 
   const handleDragLeave = (event) => {
@@ -80,46 +91,45 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
       if (onError) onError("Please choose a file to upload.");
       return;
     }
+    if (uploadingRef.current) return;
+    uploadingRef.current = true;
     try {
       setUploading(true);
       setUploadProgress(0);
-      
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + 10;
-        });
-      }, 200);
 
-      await uploadFile(selectedFile);
-      clearInterval(progressInterval);
+      // The bar tracks bytes sent to the API. The last few percent are held
+      // back until the server has stored the file and answered.
+      await uploadFile(selectedFile, (fraction) => {
+        setUploadProgress(Math.round(fraction * UPLOAD_SENT_PERCENT));
+      });
       setUploadProgress(100);
-      
-      setTimeout(() => {
+
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
+      if (onSuccess) {
+        onSuccess(`"${selectedFile.name}" uploaded successfully!`);
+      }
+
+      // Show the completed bar briefly. The controls stay disabled until the
+      // selection is cleared, so the same file cannot be sent twice.
+      resetTimerRef.current = setTimeout(() => {
         setSelectedFile(null);
         setUploadProgress(0);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
-        if (onUploadSuccess) {
-          onUploadSuccess();
-        }
-        if (onSuccess) {
-          onSuccess(`"${selectedFile.name}" uploaded successfully!`);
-        }
-      }, 500);
+        uploadingRef.current = false;
+        setUploading(false);
+      }, COMPLETED_BAR_MS);
     } catch (error) {
+      uploadingRef.current = false;
+      setUploading(false);
       setUploadProgress(0);
       // A 401 ends the session; AuthContext reports it
       if (onError && !isUnauthorized(error)) {
         onError(getErrorMessage(error, "Upload failed. Please try again."));
       }
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -144,7 +154,6 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
       </div>
 
       <div
-        ref={dropzoneRef}
         className={`upload-dropzone ${isDragging ? "is-dragging" : ""} ${uploading ? "is-uploading" : ""}`.trim()}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -176,7 +185,9 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
               </svg>
             </div>
             <div className="upload-text-main">
-              Uploading file...
+              {uploadProgress >= 100
+                ? "Upload complete"
+                : `Uploading file... ${uploadProgress}%`}
             </div>
             <div className="upload-text-sub">
               Please wait while your file is being uploaded
@@ -278,7 +289,13 @@ const FileUpload = ({ onUploadSuccess, onError, onSuccess }) => {
             )}
           </div>
           {uploading && (
-            <div className="upload-progress">
+            <div
+              className="upload-progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={uploadProgress}
+            >
               <div className="upload-progress-bar" style={{ width: `${uploadProgress}%` }}></div>
             </div>
           )}

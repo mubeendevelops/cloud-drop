@@ -6,11 +6,12 @@ import {
   isImageFile,
   copyToClipboard,
   getDownloadUrl,
+  getThumbnailUrl,
   saveFileAs,
 } from "../utils/fileUtils";
 
-const FileIcon = ({ mimeType }) => {
-  const iconType = getFileIcon(mimeType);
+const FileIcon = ({ mimeType, fileName }) => {
+  const iconType = getFileIcon(mimeType, fileName);
   const icons = {
     image: (
       <svg viewBox="0 0 24 24" fill="none">
@@ -117,6 +118,25 @@ const FileIcon = ({ mimeType }) => {
         />
       </svg>
     ),
+    presentation: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect
+          x="3"
+          y="4"
+          width="18"
+          height="12"
+          rx="2"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <path
+          d="M12 16v4M8 20h8M2 4h20"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
     archive: (
       <svg viewBox="0 0 24 24" fill="none">
         <path
@@ -206,9 +226,11 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
           </div>
         </div>
         <span className="list-count">
-          {hasFiles
-            ? `${files.length} item${files.length !== 1 ? "s" : ""}`
-            : "No files yet"}
+          {!hasFiles
+            ? "No files yet"
+            : searchQuery
+            ? `${filteredFiles.length} of ${files.length} item${files.length !== 1 ? "s" : ""}`
+            : `${files.length} item${files.length !== 1 ? "s" : ""}`}
         </span>
       </div>
 
@@ -331,13 +353,16 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
                 {isImageFile(file.mimeType) ? (
                   <div className="file-preview">
                     <img
-                      src={file.cloudinaryUrl}
+                      src={getThumbnailUrl(file.cloudinaryUrl)}
                       alt={file.originalName}
                       loading="lazy"
                     />
                   </div>
                 ) : (
-                  <FileIcon mimeType={file.mimeType} />
+                  <FileIcon
+                    mimeType={file.mimeType}
+                    fileName={file.originalName}
+                  />
                 )}
               </div>
               <div className="file-main">

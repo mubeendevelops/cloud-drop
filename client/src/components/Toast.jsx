@@ -1,14 +1,21 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 const Toast = ({ message, type = "info", onClose, duration = 4000 }) => {
+  // Keep the latest onClose without making it a dependency of the timer, so
+  // a parent re-render never restarts the countdown.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {
-        onClose();
+        onCloseRef.current();
       }, duration);
       return () => clearTimeout(timer);
     }
-  }, [duration, onClose]);
+  }, [duration]);
 
   return (
     <div className={`toast toast-${type}`} role="alert">
