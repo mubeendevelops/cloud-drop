@@ -25,9 +25,9 @@ export const uploadSingle = (req, res, next) => {
     if (error instanceof multer.MulterError) {
       if (error.code === "LIMIT_FILE_SIZE") {
         error.statusCode = 413;
-        error.message = `File is too large. The limit is ${
+        error.message = `This file is over ${
           MAX_FILE_SIZE_BYTES / (1024 * 1024)
-        } MB.`;
+        } MB. Please choose a smaller one.`;
       } else {
         error.statusCode = 400;
       }
