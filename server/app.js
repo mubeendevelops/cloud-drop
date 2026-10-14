@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import morgan from "morgan";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
@@ -7,6 +8,11 @@ import fileRoutes from "./routes/fileRoutes.js";
 
 const app = express();
 
+// Render puts one proxy in front of the app; trust it so req.ip (and the auth
+// rate limiter) sees the real client address rather than the proxy's.
+app.set("trust proxy", 1);
+
+app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -72,12 +78,44 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api", fileRoutes);
 
+// Mongoose errors carry no statusCode; map the ones caused by bad input
+const getStatusCode = (err) => {
+  if (err.statusCode) return err.statusCode;
+  if (err instanceof mongoose.Error.ValidationError) return 400;
+  if (err instanceof mongoose.Error.CastError) return 400;
+  if (err.code === 11000) return 409;
+  return 500;
+};
+
+const GENERIC_SERVER_ERROR = "Something went wrong on the server. Please try again.";
+
+const getClientMessage = (err, status) => {
+  // Internal details stay in the server log
+  if (status === 500) return GENERIC_SERVER_ERROR;
+  if (err instanceof mongoose.Error.ValidationError) {
+    return Object.values(err.errors)
+      .map((fieldError) => fieldError.message)
+      .join(", ");
+  }
+  if (err instanceof mongoose.Error.CastError) return `Invalid ${err.path}`;
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {})[0];
+    return field
+      ? `A record with this ${field} already exists`
+      : "That record already exists";
+  }
+  return err.message || "Request failed";
+};
+
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-  console.error(err);
-  const status = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  res.status(status).json({ message });
+  const status = getStatusCode(err);
+  if (status >= 500) {
+    console.error(err);
+  } else {
+    console.warn(`${status} ${err.name}: ${err.message}`);
+  }
+  res.status(status).json({ message: getClientMessage(err, status) });
 });
 
 export default app;

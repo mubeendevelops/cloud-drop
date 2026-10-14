@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 const createError = (message, statusCode) => {
   const error = new Error(message);
@@ -10,6 +11,10 @@ const createError = (message, statusCode) => {
 const isValidEmail = (email) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
+
+// Compared against when the email is unknown, so that case takes as long as
+// a wrong password and response times do not reveal registered emails
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("not-a-real-password", 10);
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -78,16 +83,14 @@ export const login = async (req, res, next) => {
       throw createError("Please provide a valid email address", 400);
     }
 
-    // Find user and include password for comparison
+    // One message for an unknown email and a wrong password, so the response
+    // does not reveal which emails are registered
     const user = await User.findOne({ email }).select("+password");
-    if (!user) {
-      throw createError("No account found with this email", 404);
-    }
-
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = user
+      ? await user.comparePassword(password)
+      : await bcrypt.compare(password, DUMMY_PASSWORD_HASH).then(() => false);
     if (!isPasswordValid) {
-      throw createError("Incorrect password", 401);
+      throw createError("Invalid email or password", 401);
     }
 
     // Generate token
