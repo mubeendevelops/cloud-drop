@@ -33,12 +33,6 @@ const toHttpError = (cloudinaryError) => {
   return createError("File storage request failed", 500);
 };
 
-// Multer 1.x decodes multipart file names as latin1, which garbles UTF-8
-const decodeOriginalName = (name) => {
-  const decoded = Buffer.from(name, "latin1").toString("utf8");
-  return decoded.includes("\uFFFD") ? name : decoded;
-};
-
 // Lower-case extension with the dot, or "" when it is missing or unusual
 const getSafeExtension = (name) => {
   const ext = path.extname(name).toLowerCase();
@@ -158,8 +152,7 @@ export const uploadFile = async (req, res, next) => {
       throw createError("No file uploaded", 400);
     }
 
-    const { mimetype, size, buffer } = req.file;
-    const originalName = decodeOriginalName(req.file.originalname);
+    const { mimetype, size, buffer, originalname: originalName } = req.file;
 
     await assertWithinQuota(req.user.userId, size);
 

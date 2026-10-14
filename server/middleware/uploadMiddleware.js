@@ -10,9 +10,12 @@ const limits = {
   fileSize: MAX_FILE_SIZE_BYTES,
 };
 
+// Browsers send the multipart file name as raw UTF-8; Multer's default of
+// latin1 would garble names such as "résumé.pdf".
 const upload = multer({
   storage,
   limits,
+  defParamCharset: "utf8",
 });
 
 const handleSingle = upload.single("file");
