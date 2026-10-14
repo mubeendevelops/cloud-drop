@@ -1,38 +1,50 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
-import dotenv from "dotenv";
-import connectDB from "./config/db.js";
+import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
 import fileRoutes from "./routes/fileRoutes.js";
-
-dotenv.config();
-connectDB();
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const allowedOriginsEnv = process.env.CLIENT_URLS || "";
-const allowedOrigins = allowedOriginsEnv
+const isProduction = process.env.NODE_ENV === "production";
+
+const normalizeOrigin = (origin) => origin.trim().replace(/\/+$/, "");
+
+const allowedOrigins = (process.env.CLIENT_URLS || "")
   .split(",")
-  .map((o) => o.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
+
+if (isProduction && allowedOrigins.length === 0) {
+  console.warn(
+    "CLIENT_URLS is empty: every browser origin will be blocked in production."
+  );
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Requests without an Origin header (curl, health checks) are not CORS
       if (!origin) return callback(null, true);
-      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      // An empty list is only open outside production
+      if (allowedOrigins.length === 0 && !isProduction) {
         return callback(null, true);
       }
-      return callback(new Error("Not allowed by CORS"));
+      if (allowedOrigins.includes(normalizeOrigin(origin))) {
+        return callback(null, true);
+      }
+      const error = new Error("Not allowed by CORS");
+      error.statusCode = 403;
+      return callback(error);
     },
   })
 );
 
-if (process.env.NODE_ENV !== "production") {
+if (!isProduction) {
   app.use(morgan("dev"));
 }
 
@@ -48,6 +60,13 @@ app.get("/", (_req, res) => {
       "/api/files",
     ],
   });
+});
+
+const DB_STATES = ["disconnected", "connected", "connecting", "disconnecting"];
+
+app.get("/health", (_req, res) => {
+  const db = DB_STATES[mongoose.connection.readyState] || "unknown";
+  res.json({ status: db === "connected" ? "ok" : "degraded", db });
 });
 
 app.use("/api/auth", authRoutes);
