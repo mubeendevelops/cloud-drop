@@ -1,6 +1,6 @@
 const AppFooter = () => (
   <footer className="app-footer">
-    <span>Cloud Drop · Full-stack file upload &amp; download demo</span>
+    <span>&copy; {new Date().getFullYear()} Cloud Drop. All rights reserved.</span>
   </footer>
 );
 
