@@ -9,6 +9,11 @@ import {
   getThumbnailUrl,
   saveFileAs,
 } from "../utils/fileUtils";
+import Alert from "./ui/Alert.jsx";
+import Button from "./ui/Button.jsx";
+import IconButton from "./ui/IconButton.jsx";
+import Input from "./ui/Input.jsx";
+import Spinner from "./ui/Spinner.jsx";
 
 const FileIcon = ({ mimeType, fileName }) => {
   const iconType = getFileIcon(mimeType, fileName);
@@ -182,7 +187,11 @@ const FileIcon = ({ mimeType, fileName }) => {
       </svg>
     ),
   };
-  return <span className="file-icon">{icons[iconType] || icons.file}</span>;
+  return (
+    <span className={`file-tile file-tile-${icons[iconType] ? iconType : "file"}`} aria-hidden="true">
+      {icons[iconType] || icons.file}
+    </span>
+  );
 };
 
 const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
@@ -216,178 +225,168 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
     if (!saved) window.location.assign(getDownloadUrl(file));
   };
 
+  const visibleFiles = searchQuery ? filteredFiles : files;
+
   return (
-    <div>
-      <div className="list-header">
+    <div className="files">
+      <div className="section-header">
         <div>
-          <h2 className="list-title">Your files</h2>
-          <div className="list-subtitle">
-            Browse, download, or delete uploaded files.
-          </div>
+          <h2 className="section-title" id="files-title">
+            Your files
+          </h2>
+          <p className="section-subtitle">
+            Browse, download, or delete your files.
+          </p>
         </div>
-        <span className="list-count">
-          {!hasFiles
-            ? "No files yet"
-            : searchQuery
-            ? `${filteredFiles.length} of ${files.length} item${files.length !== 1 ? "s" : ""}`
-            : `${files.length} item${files.length !== 1 ? "s" : ""}`}
-        </span>
+        {hasFiles && (
+          <span className="list-count tnum" aria-live="polite">
+            {searchQuery
+              ? `${filteredFiles.length} of ${files.length} file${files.length !== 1 ? "s" : ""}`
+              : `${files.length} file${files.length !== 1 ? "s" : ""}`}
+          </span>
+        )}
       </div>
 
       {hasFiles && (
-        <div className="search-container">
-          <svg className="search-icon" viewBox="0 0 24 24" fill="none">
-            <circle
-              cx="11"
-              cy="11"
-              r="8"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <path
-              d="m21 21-4.35-4.35"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search files..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              className="search-clear"
-              onClick={() => setSearchQuery("")}
-              aria-label="Clear search"
-            >
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M18 6L6 18M6 6l12 12"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
+        <Input
+          id="file-search"
+          type="search"
+          label="Search files"
+          hideLabel
+          className="file-search"
+          placeholder="Search files…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          leading={
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="11" cy="11" r="7.5" stroke="currentColor" strokeWidth="2" />
+              <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          }
+          trailing={
+            searchQuery && (
+              <button
+                type="button"
+                className="field-trailing-btn"
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )
+          }
+        />
       )}
 
       {error && (
-        <div className="alert alert-error">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <path
-              d="M12 8v4M12 16h.01"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>{error}</span>
-          {onRetry && !loading && (
-            <button type="button" className="alert-action" onClick={onRetry}>
-              Retry
-            </button>
-          )}
-        </div>
+        <Alert
+          action={
+            onRetry &&
+            !loading && (
+              <Button variant="secondary" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            )
+          }
+        >
+          {error}
+        </Alert>
       )}
 
       {loading && (
-        <div className="loading-skeleton-container">
+        <div className="file-list" aria-busy="true" aria-label="Loading files">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="file-row-skeleton">
-              <div className="skeleton-icon"></div>
-              <div className="skeleton-content">
-                <div className="skeleton-line skeleton-title"></div>
-                <div className="skeleton-line skeleton-meta"></div>
+            <div key={i} className="file-row file-row-skeleton" aria-hidden="true">
+              <div className="skeleton skeleton-tile"></div>
+              <div className="skeleton-lines">
+                <div className="skeleton skeleton-title"></div>
+                <div className="skeleton skeleton-meta"></div>
               </div>
             </div>
           ))}
+          <span className="visually-hidden" role="status">
+            Loading files…
+          </span>
         </div>
       )}
 
       {!loading && !hasFiles && !error && (
-        <div className="list-empty">
-          <svg className="empty-icon" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
-              stroke="currentColor"
-              strokeWidth="2"
-            />
-            <path
-              d="M14 2v6h6M16 13H8M16 17H8"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <p>Nothing here yet.</p>
+        <div className="empty-state">
+          <span className="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M7 18.5h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.5 9.6 4.5 4.5 0 0 0 7 18.5z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 16v-5m0 0-2 2m2-2 2 2"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <p className="empty-title">Your library is empty</p>
           <p className="empty-subtitle">
-            Upload a file to see it appear in your library.
+            Upload your first file and it'll show up here.
           </p>
         </div>
       )}
 
       {!loading && searchQuery && filteredFiles.length === 0 && (
-        <div className="list-empty">
-          <p>No files found matching "{searchQuery}"</p>
+        <div className="empty-state empty-state-compact">
+          <p className="empty-title">No files found matching "{searchQuery}"</p>
+          <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")}>
+            Clear search
+          </Button>
         </div>
       )}
 
-      {!loading && hasFiles && (
-        <div className="file-list">
-          {(searchQuery ? filteredFiles : files).map((file) => (
-            <div key={file._id} className="file-row">
-              <div className="file-icon-wrapper">
-                {isImageFile(file.mimeType) ? (
-                  <div className="file-preview">
-                    <img
-                      src={getThumbnailUrl(file.cloudinaryUrl)}
-                      alt={file.originalName}
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <FileIcon
-                    mimeType={file.mimeType}
-                    fileName={file.originalName}
+      {!loading && hasFiles && visibleFiles.length > 0 && (
+        <ul className="file-list">
+          {visibleFiles.map((file) => (
+            <li key={file._id} className="file-row">
+              {isImageFile(file.mimeType) ? (
+                <span className="file-tile file-tile-preview">
+                  <img
+                    src={getThumbnailUrl(file.cloudinaryUrl)}
+                    alt=""
+                    loading="lazy"
                   />
-                )}
-              </div>
+                </span>
+              ) : (
+                <FileIcon
+                  mimeType={file.mimeType}
+                  fileName={file.originalName}
+                />
+              )}
               <div className="file-main">
                 <div className="file-name" title={file.originalName}>
                   {file.originalName}
                 </div>
                 <div className="file-meta">
-                  <span>{formatBytes(file.size)}</span>
-                  <span>·</span>
-                  <span>{file.mimeType || "Unknown"}</span>
-                  <span>·</span>
-                  <span className="file-date">
+                  <span className="tnum">{formatBytes(file.size)}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="file-type">{file.mimeType || "Unknown"}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="file-date tnum">
                     {formatDate(file.createdAt)}
                   </span>
                 </div>
               </div>
               <div className="file-actions">
-                <button
-                  className="btn-icon"
+                <IconButton
+                  label={copiedId === file._id ? "Copied" : `Copy URL of ${file.originalName}`}
+                  className={copiedId === file._id ? "is-done" : undefined}
                   onClick={() => handleCopyUrl(file)}
-                  title="Copy URL"
-                  aria-label="Copy URL"
                 >
                   {copiedId === file._id ? (
-                    <svg viewBox="0 0 24 24" fill="none">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path
                         d="M20 6L9 17l-5-5"
                         stroke="currentColor"
@@ -397,7 +396,7 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
                       />
                     </svg>
                   ) : (
-                    <svg viewBox="0 0 24 24" fill="none">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <rect
                         x="9"
                         y="9"
@@ -414,35 +413,36 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
                       />
                     </svg>
                   )}
-                </button>
-                <a
-                  className="btn-icon btn-icon-primary"
+                </IconButton>
+                <IconButton
+                  tone="primary"
+                  label={`Download ${file.originalName}`}
                   href={getDownloadUrl(file)}
                   download={file.originalName}
                   rel="noopener noreferrer"
                   onClick={(event) => handleDownload(event, file)}
                   aria-busy={downloadingId === file._id}
-                  title="Download"
-                  aria-label="Download"
                 >
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </a>
-                <button
-                  type="button"
-                  className="btn-icon btn-icon-danger"
+                  {downloadingId === file._id ? (
+                    <Spinner />
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </IconButton>
+                <IconButton
+                  tone="danger"
+                  label={`Delete ${file.originalName}`}
                   onClick={() => onDelete(file._id, file.originalName)}
-                  title="Delete"
-                  aria-label="Delete"
                 >
-                  <svg viewBox="0 0 24 24" fill="none">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path
                       d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
                       stroke="currentColor"
@@ -451,11 +451,11 @@ const FileList = ({ files, loading, error, onRetry, onDelete, onCopyUrl }) => {
                       strokeLinejoin="round"
                     />
                   </svg>
-                </button>
+                </IconButton>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

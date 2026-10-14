@@ -5,6 +5,13 @@ import ToastContainer from "./components/ToastContainer.jsx";
 import Modal from "./components/Modal.jsx";
 import SignIn from "./components/SignIn.jsx";
 import SignUp from "./components/SignUp.jsx";
+import AppHeader from "./components/AppHeader.jsx";
+import AppFooter from "./components/AppFooter.jsx";
+import AuthLayout from "./components/AuthLayout.jsx";
+import Alert from "./components/ui/Alert.jsx";
+import Button from "./components/ui/Button.jsx";
+import Card from "./components/ui/Card.jsx";
+import Spinner from "./components/ui/Spinner.jsx";
 import {
   getFiles,
   deleteFile,
@@ -116,28 +123,10 @@ const App = () => {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="app-root">
-        <div className="auth-loading">
-          <div className="spinner" style={{ width: "48px", height: "48px" }}>
-            <svg viewBox="0 0 24 24">
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
-                opacity="0.25"
-              />
-              <path
-                d="M12 2a10 10 0 0 1 10 10"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
+      <div className="page page-loading">
+        <div className="app-loading" role="status">
+          <Spinner size={36} />
+          <span>Loading Cloud Drop…</span>
         </div>
         <ToastContainer toasts={toasts} removeToast={removeToast} />
       </div>
@@ -147,126 +136,85 @@ const App = () => {
   // A stored session could not be checked because the server did not answer
   if (connectionError) {
     return (
-      <div className="app-root">
-        <header className="app-header">
-          <h1 className="app-title">Cloud Drop</h1>
-        </header>
-
-        <main className="app-main auth-main">
-          <section className="card auth-card connection-error">
-            <h2 className="auth-title">Can't reach the server</h2>
-            <div className="alert alert-error" role="alert">
-              {connectionError}
-            </div>
-            <div className="connection-error-actions">
-              <button className="btn btn-primary" onClick={retryConnection}>
-                Try again
-              </button>
-              <button className="btn btn-outline" onClick={signOut}>
-                Sign out
-              </button>
-            </div>
-          </section>
-        </main>
-
+      <>
+        <AuthLayout>
+          <div className="auth-header">
+            <h1 className="auth-title">Can't reach the server</h1>
+          </div>
+          <Alert>{connectionError}</Alert>
+          <div className="connection-error-actions">
+            <Button onClick={retryConnection}>Try again</Button>
+            <Button variant="secondary" onClick={signOut}>
+              Sign out
+            </Button>
+          </div>
+        </AuthLayout>
         <ToastContainer toasts={toasts} removeToast={removeToast} />
-      </div>
+      </>
     );
   }
 
   // Show authentication forms if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="app-root">
-        <header className="app-header">
-          <h1 className="app-title">Cloud Drop</h1>
-          <p className="app-subtitle">
-            A lightweight full-stack application for uploading and managing
-            files.
-          </p>
-        </header>
-
-        <main className="app-main auth-main">
-          <section className="card auth-card">
-            {authMode === "signin" ? (
-              <SignIn
-                onSwitchToSignUp={() => setAuthMode("signup")}
-                onError={error}
-                onSuccess={success}
-              />
-            ) : (
-              <SignUp
-                onSwitchToSignIn={() => setAuthMode("signin")}
-                onError={error}
-                onSuccess={success}
-              />
-            )}
-          </section>
-        </main>
-
-        <footer className="app-footer">
-          <span>Cloud Drop · Full-stack file upload & download demo</span>
-        </footer>
-
+      <>
+        <AuthLayout>
+          {authMode === "signin" ? (
+            <SignIn
+              onSwitchToSignUp={() => setAuthMode("signup")}
+              onSuccess={success}
+            />
+          ) : (
+            <SignUp
+              onSwitchToSignIn={() => setAuthMode("signin")}
+              onSuccess={success}
+            />
+          )}
+        </AuthLayout>
         <ToastContainer toasts={toasts} removeToast={removeToast} />
-      </div>
+      </>
     );
   }
 
   // Show main app if authenticated
   return (
-    <div className="app-root">
-      <header className="app-header">
-        <div className="header-content">
-          <div>
-            <h1 className="app-title">Cloud Drop</h1>
-            <p className="app-subtitle">
-              A lightweight full-stack application for uploading and managing
-              files.
-            </p>
-          </div>
-          <div className="header-actions">
-            <span className="user-name">{user?.name}</span>
-            <button className="btn btn-outline btn-logout" onClick={signOut}>
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Sign Out
-            </button>
-          </div>
+    <div className="page page-app">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <AppHeader user={user} onSignOut={signOut} />
+
+      <main className="app-main" id="main" tabIndex={-1}>
+        <div className="page-intro">
+          <h1 className="page-title">Files</h1>
+          <p className="page-subtitle">
+            Upload, organize, and download your files from anywhere.
+          </p>
         </div>
-      </header>
 
-      <main className="app-main">
-        <section className="card">
-          <FileUpload
-            onUploadSuccess={fetchFiles}
-            onError={handleUploadError}
-            onSuccess={handleUploadSuccess}
-          />
-        </section>
+        <div className="app-grid">
+          <Card className="card-upload" aria-labelledby="upload-title">
+            <FileUpload
+              onUploadSuccess={fetchFiles}
+              onError={handleUploadError}
+              onSuccess={handleUploadSuccess}
+            />
+          </Card>
 
-        <section className="card">
-          <FileList
-            files={files}
-            loading={listLoading}
-            error={listError}
-            onRetry={fetchFiles}
-            onDelete={handleDeleteClick}
-            onCopyUrl={handleCopyUrl}
-          />
-        </section>
+          <Card className="card-files" aria-labelledby="files-title">
+            <FileList
+              files={files}
+              loading={listLoading}
+              error={listError}
+              onRetry={fetchFiles}
+              onDelete={handleDeleteClick}
+              onCopyUrl={handleCopyUrl}
+            />
+          </Card>
+        </div>
       </main>
 
-      <footer className="app-footer">
-        <span>Cloud Drop · Full-stack file upload & download demo</span>
-      </footer>
+      <AppFooter />
 
       <Modal
         isOpen={deleteModal.isOpen}
@@ -274,7 +222,7 @@ const App = () => {
           setDeleteModal({ isOpen: false, fileId: null, fileName: "" })
         }
         onConfirm={handleDeleteConfirm}
-        title="Delete File"
+        title="Delete file"
         message={`Are you sure you want to delete "${deleteModal.fileName}"? This action cannot be undone.`}
         confirmText="Delete"
         loadingText="Deleting…"

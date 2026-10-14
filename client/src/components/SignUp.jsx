@@ -1,29 +1,47 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import Alert from "./ui/Alert.jsx";
+import Button from "./ui/Button.jsx";
+import Input from "./ui/Input.jsx";
+import { isValidEmail } from "./ui/validation.js";
 
-const SignUp = ({ onSwitchToSignIn, onError, onSuccess }) => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+const FIELDS = ["name", "email", "password", "confirmPassword"];
+
+const SignUp = ({ onSwitchToSignIn, onSuccess }) => {
+  const [values, setValues] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
   const { signUp } = useAuth();
+  const { name, email, password, confirmPassword } = values;
+
+  const validate = () => {
+    const next = {};
+    if (!name) next.name = "Enter your name";
+    if (!email) next.email = "Enter your email address";
+    else if (!isValidEmail(email)) next.email = "Enter a valid email address, like name@example.com";
+    if (!password) next.password = "Create a password";
+    else if (password.length < 6) next.password = "Password must be at least 6 characters";
+    if (!confirmPassword) next.confirmPassword = "Confirm your password";
+    else if (password && password !== confirmPassword) next.confirmPassword = "Passwords do not match";
+    return next;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
 
-    if (!name || !email || !password || !confirmPassword) {
-      onError("Please fill in all fields");
-      return;
-    }
-
-    if (password.length < 6) {
-      onError("Password must be at least 6 characters");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      onError("Passwords do not match");
+    const next = validate();
+    setErrors(next);
+    // Move focus to the first field that needs attention
+    const firstInvalid = FIELDS.find((field) => next[field]);
+    if (firstInvalid) {
+      document.getElementById(firstInvalid)?.focus();
       return;
     }
 
@@ -34,147 +52,90 @@ const SignUp = ({ onSwitchToSignIn, onError, onSuccess }) => {
     if (result.success) {
       onSuccess("Account created successfully!");
     } else {
-      onError(result.message);
+      setFormError(result.message);
     }
   };
+
+  const fieldProps = (field) => ({
+    id: field,
+    value: values[field],
+    onChange: (e) => {
+      setValues((prev) => ({ ...prev, [field]: e.target.value }));
+      if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+      if (formError) setFormError("");
+    },
+    error: errors[field],
+    disabled: loading,
+    required: true,
+  });
 
   return (
     <div className="auth-container">
       <div className="auth-header">
-        <h2 className="auth-title">Sign Up</h2>
-        <p className="auth-subtitle">Create your Cloud Drop account</p>
+        <h1 className="auth-title">Create your account</h1>
+        <p className="auth-subtitle">Start storing files with Cloud Drop</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="auth-form">
-        <div className="form-group">
-          <label htmlFor="name" className="form-label">
-            Name
-          </label>
-          <input
-            id="name"
-            type="text"
-            className="form-input"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={loading}
-            required
-            autoComplete="name"
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="auth-form" noValidate>
+        <Input
+          {...fieldProps("name")}
+          type="text"
+          label="Name"
+          placeholder="Your name"
+          autoComplete="name"
+        />
 
-        <div className="form-group">
-          <label htmlFor="email" className="form-label">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            className="form-input"
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loading}
-            required
-            autoComplete="email"
-          />
-        </div>
+        <Input
+          {...fieldProps("email")}
+          type="email"
+          label="Email"
+          placeholder="name@example.com"
+          autoComplete="email"
+        />
 
-        <div className="form-group">
-          <label htmlFor="password" className="form-label">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            placeholder="At least 6 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-            required
-            autoComplete="new-password"
-            minLength={6}
-          />
-        </div>
+        <Input
+          {...fieldProps("password")}
+          type="password"
+          label="Password"
+          placeholder="Create a password"
+          hint="At least 6 characters"
+          autoComplete="new-password"
+          minLength={6}
+        />
 
-        <div className="form-group">
-          <label htmlFor="confirmPassword" className="form-label">
-            Confirm Password
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            className="form-input"
-            placeholder="Re-enter your password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={loading}
-            required
-            autoComplete="new-password"
-          />
-        </div>
+        <Input
+          {...fieldProps("confirmPassword")}
+          type="password"
+          label="Confirm password"
+          placeholder="Re-enter your password"
+          autoComplete="new-password"
+        />
 
-        <button
+        {formError && <Alert>{formError}</Alert>}
+
+        <Button
           type="submit"
-          className="btn btn-primary btn-full"
-          disabled={loading}
+          block
+          loading={loading}
+          loadingText="Creating account…"
         >
-          {loading ? (
-            <>
-              <svg className="spinner" viewBox="0 0 24 24">
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  opacity="0.25"
-                />
-                <path
-                  d="M12 2a10 10 0 0 1 10 10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-              </svg>
-              Creating account...
-            </>
-          ) : (
-            <>
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0zM19 7a2 2 0 1 0-4 0 2 2 0 0 0 4 0zM12 11v6M9 14h6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Create Account
-            </>
-          )}
-        </button>
+          Create account
+        </Button>
       </form>
 
-      <div className="auth-footer">
-        <p className="auth-switch-text">
-          Already have an account?{" "}
-          <button
-            type="button"
-            className="auth-switch-link"
-            onClick={onSwitchToSignIn}
-            disabled={loading}
-          >
-            Sign in
-          </button>
-        </p>
-      </div>
+      <p className="auth-switch">
+        Already have an account?{" "}
+        <button
+          type="button"
+          className="link-button"
+          onClick={onSwitchToSignIn}
+          disabled={loading}
+        >
+          Sign in
+        </button>
+      </p>
     </div>
   );
 };
 
 export default SignUp;
-
